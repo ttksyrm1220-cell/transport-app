@@ -240,10 +240,12 @@
           // ★ キロ単価判定（任意入力）
           let judgeHtml = "";
           if (!isNaN(actualRateInput) && totalKm > 0 && breakevenRate) {
-            const diffPerKm = actualRateInput - breakevenRate;
-            const breakevenTotal = breakevenRate * totalKm;
-            const actualTotal = actualRateInput * totalKm;
-            const diffTotal = actualTotal - breakevenTotal;
+          const breakevenTotal = vehicle.base + (breakevenRate * totalKm);
+const actualTotal = actualRateInput * totalKm;
+
+const diffTotal = actualTotal - breakevenTotal;
+const diffPerKm = diffTotal / totalKm;
+
 
             if (diffPerKm >= 0) {
               judgeHtml =
