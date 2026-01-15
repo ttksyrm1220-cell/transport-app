@@ -88,8 +88,8 @@
       ・保険・税金・間接費の一部　など<br>
       これらを年次の実績や社内原価表から1kmあたりに換算し、<br>
       例として次のような設定を置いています：<br>
-      ・4tウイング：160円/km<br>
-      ・10tウイング：220円/km<br>
+      ・4tウイング：135円/km<br>
+      ・10tウイング：197円/km<br>
     </p>
     <p>
       ■ <strong>距離ベースで原価を見る理由</strong><br>
@@ -262,11 +262,10 @@ if (isFinite(requestAmount)) {
             <strong>車種：</strong>${vehicle.label}<br>
             <strong>総走行距離：</strong>${totalKm.toFixed(1)} km<br><br>
 
-            <strong>損益分岐キロ単価：</strong>${breakevenRate} 円/km<br>
             <strong>原価（目安）：</strong>${Math.round(cost).toLocaleString()} 円<br>
             <strong>見積額（原価 × 係数 ${factor.toFixed(2)}）：</strong>${Math.round(estimate).toLocaleString()} 円<br><br>
 
-            <strong>実際のキロ単価 判定：</strong><br>
+            <strong>依頼金額による判定：</strong><br>
             ${judgeHtml}
             <br>
 
