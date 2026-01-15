@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>輸送原価・見積額簡易計算（経由地・車種・損益分岐判定付き）</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 750px;
+      margin: 20px auto;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    textarea, input[type="text"], input[type="number"], select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      box-sizing: border-box;
+    }
+    textarea {
+      min-height: 80px;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px 16px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 6px;
+      background: #f7f7f7;
+    }
+    .legs {
+      margin-top: 10px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    details {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 6px;
+      background: #fafafa;
+      border: 1px solid #eee;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    details summary {
+      font-weight: bold;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>輸送原価・見積額 簡易計算（経由地・車種・損益分岐判定付き）</h1>
+
+  <!-- ★ 原価の根拠説明ブロック -->
+  <details>
+    <summary>原価計算の考え方（説明を開く）</summary>
+    <p>
+      このアプリでは、トラック1台あたりの原価を<br>
+      <strong>原価 ＝ 基本料金（固定費）＋「走行距離 × 1km単価」</strong><br>
+      というシンプルな式で計算しています。
+    </p>
+    <p>
+      ■ <strong>基本料金（base）</strong><br>
+      出庫・点検・配車・待機・積込／荷降ろしなど、<br>
+      距離に関係なく「1運行あたり」でかかる費用の目安です。<br>
+      例：<br>
+      ・4tウイング：3,200円<br>
+      ・10tウイング：5,000円<br>
+    </p>
+    <p>
+      ■ <strong>1km単価（perKm）</strong><br>
+      以下のような「走った距離に比例する費用」をまとめたものです：<br>
+      ・燃料費（軽油）<br>
+      ・タイヤ費<br>
+      ・修繕・オイル・消耗品<br>
+      ・車両の償却費（車両代）<br>
+      ・運転手人件費（時間と距離の関係から換算）<br>
+      ・保険・税金・間接費の一部　など<br>
+      これらを年次の実績や社内原価表から1kmあたりに換算し、<br>
+      例として次のような設定を置いています：<br>
+      ・4tウイング：160円/km<br>
+      ・10tウイング：220円/km<br>
+    </p>
+    <p>
+      ■ <strong>距離ベースで原価を見る理由</strong><br>
+      燃料・タイヤ・修繕・車両の劣化・人件費（拘束時間）は、<br>
+      いずれも走行距離と強く相関します。<br>
+      そのため、トラック運送業では<br>
+      <strong>「距離 × 単価」＋固定費</strong> という形で原価を簡易的に出すのが一般的です。<br>
+      国土交通省の「標準的な運賃」や、トラック協会の原価計算モデルでも<br>
+      距離区分・距離単価がベースになっています。
+    </p>
+    <p>
+      ■ <strong>損益分岐キロ単価の設定</strong><br>
+      このアプリでは、車種ごとの損益分岐キロ単価を<br>
+      ・4tウイング：<strong>135円/km</strong><br>
+      ・10tウイング：<strong>197円/km</strong><br>
+      のように仮設定しています。<br>
+      実際の値は、御社の年間走行距離・燃料費・車両価格・人件費・高速代などから<br>
+      「年間総コスト ÷ 年間走行距離」で計算して更新してください。
+    </p>
+    <p>
+      ■ <strong>カスタマイズの前提</strong><br>
+      このアプリ内の <code>VEHICLE_PARAMS</code>（原価用）と<br>
+      <code>BREAKEVEN_KM_RATE</code>（損益分岐用）は、<br>
+      あくまで<span>目安値</span>です。<br>
+      実務で使う場合は、御社の実際の原価・損益分岐をもとに<br>
+      数値を見直してから運用してください。
+    </p>
+  </details>
+
+  <label>積み地（出発地）住所：</label>
+  <input id="origin" type="text" placeholder="例：東京都江東区新木場1-1-1" />
+
+  <label>経由地（任意・複数可、1行に1地点）：</label>
+  <textarea id="waypoints" placeholder="例：
+埼玉県川口市○○
+群馬県高崎市○○
+"></textarea>
+
+  <label>卸地（最終到着地）住所：</label>
+  <input id="destination" type="text" placeholder="例：大阪府大阪市住之江区1-1-1" />
+
+  <label>車種：</label>
+  <select id="vehicle">
+    <option value="4t_wing">4tウイング</option>
+    <option value="10t_wing">10tウィング</option>
+  </select>
+
+  <label>見積係数（原価 × 係数）：</label>
+  <input id="factor" type="number" step="0.01" value="1.2" placeholder="例：1.2" />
+
+  <label>実際のキロ単価（任意・円/km）：</label>
+  <input id="actualRate" type="number" step="1" placeholder="例：180" />
+
+  <button onclick="calculateRouteAndCost()">原価と見積額を計算</button>
+
+  <div class="result" id="output"></div>
+
+  <!-- Google Maps API（※ここはあなたのAPIキーに差し替え） -->
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCNNeldUbE5mzfEHdIaaEEudewMm0MPRf4"
+    async defer
+  ></script>
+
+  <script>
+    // ▼ 車種別 原価パラメータ
+    // base: 固定費（1運行あたりの目安）
+    // perKm: 1kmあたりの原価（燃料・タイヤ・修繕・償却・人件費などを含む目安）
+    const VEHICLE_PARAMS = {
+      "4t_wing": { label: "4tウイング", base: 3200, perKm: 135 },
+      "10t_wing": { label: "10tウィング", base: 5000, perKm: 197 }
+    };
+
+    // ▼ 車種別 損益分岐キロ単価（円/km）
+    const BREAKEVEN_KM_RATE = {
+      "4t_wing": 135,  // 4t ウイング
+      "10t_wing": 197  // 10t ウイング
+    };
+
+    function calculateRouteAndCost() {
+      const origin = document.getElementById("origin").value.trim();
+      const destination = document.getElementById("destination").value.trim();
+      const waypointsText = document.getElementById("waypoints").value;
+      const vehicleKey = document.getElementById("vehicle").value;
+      const factor = parseFloat(document.getElementById("factor").value) || 1.0;
+      const actualRateInput = parseFloat(document.getElementById("actualRate").value);
+
+      const output = document.getElementById("output");
+
+      if (!origin || !destination) {
+        output.innerHTML = "積み地と卸地を入力してください。";
+        return;
+      }
+
+      const vehicle = VEHICLE_PARAMS[vehicleKey];
+      if (!vehicle) {
+        output.innerHTML = "車種の設定に問題があります。";
+        return;
+      }
+
+      // 経由地の配列化
+      const waypointLines = waypointsText
+        .split("\n")
+        .map(line => line.trim())
+        .filter(line => line);
+
+      const waypoints = waypointLines.map(address => ({
+        location: address,
+        stopover: true
+      }));
+
+      const directionsService = new google.maps.DirectionsService();
+
+      directionsService.route(
+        {
+          origin,
+          destination,
+          waypoints,
+          optimizeWaypoints: false,
+          travelMode: google.maps.TravelMode.DRIVING
+        },
+        (result, status) => {
+          if (status !== "OK") {
+            output.innerHTML = "ルート取得に失敗しました：" + status;
+            return;
+          }
+
+          const route = result.routes[0];
+          let totalDistanceMeters = 0;
+          let legsHtml = "";
+
+          route.legs.forEach((leg, i) => {
+            totalDistanceMeters += leg.distance.value;
+            const distKm = leg.distance.value / 1000;
+            legsHtml += `区間${i + 1}：${leg.start_address} → ${leg.end_address}：${distKm.toFixed(1)} km<br>`;
+          });
+
+          const totalKm = totalDistanceMeters / 1000;
+
+          // ★ 原価 = 基本料金 + km単価×距離
+          const cost = vehicle.base + totalKm * vehicle.perKm;
+
+          // ★ 見積額（原価 × 係数）
+          const estimate = cost * factor;
+
+          // ★ 損益分岐キロ単価
+          const breakevenRate = BREAKEVEN_KM_RATE[vehicleKey];
+
+          // ★ キロ単価判定（任意入力）
+          let judgeHtml = "";
+          if (!isNaN(actualRateInput) && totalKm > 0 && breakevenRate) {
+            const diffPerKm = actualRateInput - breakevenRate;
+            const breakevenTotal = breakevenRate * totalKm;
+            const actualTotal = actualRateInput * totalKm;
+            const diffTotal = actualTotal - breakevenTotal;
+
+            if (diffPerKm >= 0) {
+              judgeHtml =
+                `<span style="color:green;font-weight:bold;">✅ 黒字見込み</span><br>` +
+                `（損益分岐 ${breakevenRate}円/km に対して +${diffPerKm.toFixed(1)}円/km、` +
+                `合計差額 +${Math.round(diffTotal).toLocaleString()}円）<br>`;
+            } else {
+              judgeHtml =
+                `<span style="color:red;font-weight:bold;">❌ 赤字注意</span><br>` +
+                `（損益分岐 ${breakevenRate}円/km に対して ${diffPerKm.toFixed(1)}円/km、` +
+                `合計差額 ${Math.round(diffTotal).toLocaleString()}円）<br>`;
+            }
+          } else {
+            judgeHtml = "※ 実際のキロ単価を入力すると、黒字／赤字の判定を表示します。<br>";
+          }
+
+          output.innerHTML = `
+            <strong>車種：</strong>${vehicle.label}<br>
+            <strong>総走行距離：</strong>${totalKm.toFixed(1)} km<br><br>
+
+            <strong>損益分岐キロ単価：</strong>${breakevenRate} 円/km<br>
+            <strong>原価（目安）：</strong>${Math.round(cost).toLocaleString()} 円<br>
+            <strong>見積額（原価 × 係数 ${factor.toFixed(2)}）：</strong>${Math.round(estimate).toLocaleString()} 円<br><br>
+
+            <strong>実際のキロ単価 判定：</strong><br>
+            ${judgeHtml}
+            <br>
+
+            <div class="legs">
+              <strong>区間ごとの距離内訳：</strong><br>
+              ${legsHtml}
+            </div>
+          `;
+        }
+      );
+    }
+  </script>
+</body>
+</html>
