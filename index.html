@@ -236,31 +236,30 @@
 
           // ★ 損益分岐キロ単価
           const breakevenRate = BREAKEVEN_KM_RATE[vehicleKey];
+}
+　　　　　// ★ 依頼金額で黒字 / 赤字を判定
+let judgeHtml = "";
 
-          // ★ キロ単価判定（任意入力）
-          let judgeHtml = "";
-          if (!isNaN(actualRateInput) && totalKm > 0 && breakevenRate) {
-          const breakevenTotal = vehicle.base + (breakevenRate * totalKm);
-const actualTotal = actualRateInput * totalKm;
+if (isFinite(requestAmount)) {
+  const profit = requestAmount - cost;        // cost = 原価
+  const profitPerKm = profit / totalKm;
 
-const diffTotal = actualTotal - breakevenTotal;
-const diffPerKm = diffTotal / totalKm;
-
-
-            if (diffPerKm >= 0) {
-              judgeHtml =
-                `<span style="color:green;font-weight:bold;">✅ 黒字見込み</span><br>` +
-                `（損益分岐 ${breakevenRate}円/km に対して +${diffPerKm.toFixed(1)}円/km、` +
-                `合計差額 +${Math.round(diffTotal).toLocaleString()}円）<br>`;
-            } else {
-              judgeHtml =
-                `<span style="color:red;font-weight:bold;">❌ 赤字注意</span><br>` +
-                `（損益分岐 ${breakevenRate}円/km に対して ${diffPerKm.toFixed(1)}円/km、` +
-                `合計差額 ${Math.round(diffTotal).toLocaleString()}円）<br>`;
-            }
-          } else {
-            judgeHtml = "※ 実際のキロ単価を入力すると、黒字／赤字の判定を表示します。<br>";
-          }
+  if (profit >= 0) {
+    judgeHtml =
+      `<span style="color:green;font-weight:bold;">✅ 黒字</span><br>` +
+      `原価 ${Math.round(cost).toLocaleString()}円 に対して ` +
+      `依頼金額 ${Math.round(requestAmount).toLocaleString()}円<br>` +
+      `差額 +${Math.round(profit).toLocaleString()}円（+${profitPerKm.toFixed(1)}円/km）<br>`;
+  } else {
+    judgeHtml =
+      `<span style="color:red;font-weight:bold;">❌ 赤字</span><br>` +
+      `原価 ${Math.round(cost).toLocaleString()}円 に対して ` +
+      `依頼金額 ${Math.round(requestAmount).toLocaleString()}円<br>` +
+      `差額 ${Math.round(profit).toLocaleString()}円（${profitPerKm.toFixed(1)}円/km）<br>`;
+  }
+} else {
+  judgeHtml = "※ 依頼金額（円）を入力すると黒字 / 赤字を判定します。<br>";
+}
 
           output.innerHTML = `
             <strong>車種：</strong>${vehicle.label}<br>
