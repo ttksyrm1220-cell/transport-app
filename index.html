@@ -246,7 +246,7 @@ if (isFinite(requestAmount)) {
       `<span style="color:green;font-weight:bold;">✅ 黒字</span><br>` +
       `原価 ${Math.round(cost).toLocaleString()}円 に対して ` +
       `依頼金額 ${Math.round(requestAmount).toLocaleString()}円<br>` +
-      `差額 +${Math.round(profit).toLocaleString()}円（+${profitPerKm.toFixed(1)}円/km）<br>`;
+      `差額 ${Math.round(profit).toLocaleString()}円（+${profitPerKm.toFixed(1)}円/km）<br>`;
   } else {
     judgeHtml =
       `<span style="color:red;font-weight:bold;">❌ 赤字</span><br>` +
