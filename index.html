@@ -505,69 +505,83 @@
 
     // ★白紙対策済みPDF生成（クローンして確実に描画→キャプチャ）
     async function downloadEstimatePDF() {
-      if (!LAST_RESULT) {
-        alert("先に計算してください。");
-        return;
-      }
+  if (!LAST_RESULT) {
+    alert("先に計算してください。");
+    return;
+  }
 
-      // 入力欄の最新値を反映
-      LAST_RESULT.customer = document.getElementById("customer").value.trim();
-      LAST_RESULT.subject = document.getElementById("subject").value.trim();
-      LAST_RESULT.staff = document.getElementById("staff").value.trim();
-      LAST_RESULT.validUntil = document.getElementById("validUntil").value.trim();
-      LAST_RESULT.note = document.getElementById("note").value.trim();
+  // 入力欄の最新値を反映
+  LAST_RESULT.customer = document.getElementById("customer").value.trim();
+  LAST_RESULT.subject = document.getElementById("subject").value.trim();
+  LAST_RESULT.staff = document.getElementById("staff").value.trim();
+  LAST_RESULT.validUntil = document.getElementById("validUntil").value.trim();
+  LAST_RESULT.note = document.getElementById("note").value.trim();
 
-      fillPdfTemplate();
+  fillPdfTemplate();
 
-      const original = document.getElementById("pdfArea");
-      const clone = original.cloneNode(true);
-      clone.id = "pdfAreaClone";
+  const el = document.getElementById("pdfArea");
 
-      // クローンを「(0,0)に存在」させる：ユーザーには見せない
-      clone.style.position = "fixed";
-      clone.style.left = "0";
-      clone.style.top = "0";
-      clone.style.opacity = "1";
-      clone.style.pointerEvents = "none";
-      clone.style.zIndex = "9999";
-      clone.style.background = "#fff";
+  // ★ 元のスタイルを退避
+  const prev = {
+    opacity: el.style.opacity,
+    zIndex: el.style.zIndex,
+    left: el.style.left,
+    top: el.style.top,
+    position: el.style.position,
+    pointerEvents: el.style.pointerEvents,
+    display: el.style.display
+  };
 
-      document.body.appendChild(clone);
+  // ★ PDF化の瞬間だけ「描画される状態」にする
+  el.style.position = "fixed";
+  el.style.left = "0";
+  el.style.top = "0";
+  el.style.zIndex = "2147483647";
+  el.style.opacity = "1";
+  el.style.pointerEvents = "none";
+  el.style.display = "block";
 
-      // フォント描画待ち
-      if (document.fonts && document.fonts.ready) {
-        try { await document.fonts.ready; } catch (_) {}
-      }
-      // 1フレーム待ってDOM反映を確実に
-      await new Promise(r => requestAnimationFrame(r));
+  // フォント描画待ち
+  if (document.fonts && document.fonts.ready) {
+    try { await document.fonts.ready; } catch (_) {}
+  }
+  // 1フレーム待ってDOM反映を確実に
+  await new Promise(r => requestAnimationFrame(r));
 
-      const date = todayStr();
-      const kmInt = Math.round(LAST_RESULT.totalKm);
-      const fileName = `見積書_${date}_${LAST_RESULT.vehicleKey}_${kmInt}km.pdf`;
+  const date = todayStr();
+  const kmInt = Math.round(LAST_RESULT.totalKm);
+  const fileName = `見積書_${date}_${LAST_RESULT.vehicleKey}_${kmInt}km.pdf`;
 
-      const opt = {
-        margin:       [6, 6, 6, 6],
-        filename:     fileName,
-        image:        { type: "jpeg", quality: 0.98 },
-        html2canvas:  {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          scrollX: 0,
-          scrollY: 0,
-          windowWidth: clone.scrollWidth,
-          windowHeight: clone.scrollHeight
-        },
-        jsPDF:        { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak:    { mode: ["avoid-all", "css", "legacy"] }
-      };
+  const opt = {
+    margin: [6, 6, 6, 6],
+    filename: fileName,
+    image: { type: "jpeg", quality: 0.98 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: el.scrollWidth,
+      windowHeight: el.scrollHeight
+    },
+    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+    pagebreak: { mode: ["avoid-all", "css", "legacy"] }
+  };
 
-      try {
-        await html2pdf().set(opt).from(clone).save();
-      } finally {
-        clone.remove();
-      }
-    }
+  try {
+    await html2pdf().set(opt).from(el).save();
+  } finally {
+    // ★ 元に戻す
+    el.style.opacity = prev.opacity;
+    el.style.zIndex = prev.zIndex;
+    el.style.left = prev.left;
+    el.style.top = prev.top;
+    el.style.position = prev.position;
+    el.style.pointerEvents = prev.pointerEvents;
+    el.style.display = prev.display;
+  }
+}
   </script>
 </body>
 </html>
