@@ -549,8 +549,20 @@
       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Noto Sans JP",Meiryo,sans-serif;
     }
     #pdfArea {
-  display: none;   /* ← これが一番重要 */
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 210mm;
+  padding: 12mm;
+  background: #fff;
+  color: #000;
+
+  opacity: 0;            /* 見えない */
+  pointer-events: none;  /* 触れない */
+  z-index: -9999;        /* 最背面 */
+  transform: translateZ(0); /* 描画バグ対策 */
 }
+
 
     }
     .pdf-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
