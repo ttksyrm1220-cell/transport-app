@@ -521,10 +521,34 @@
 
   const el = document.getElementById("pdfArea");
 
-  // PDF生成モード開始：見積書以外を隠す
-  document.body.classList.add("pdf-capture");
+  // ★ここが肝：pdfArea以外を全部非表示（CSSではなく直指定）
+  const children = Array.from(document.body.children);
+  const backups = children.map(node => ({ node, display: node.style.display }));
 
-  // フォント描画＆DOM反映待ち
+  for (const { node } of backups) {
+    if (node !== el) node.style.display = "none";
+  }
+
+  // pdfAreaは確実に表示＆不透明＆最前面
+  const prevEl = {
+    display: el.style.display,
+    position: el.style.position,
+    left: el.style.left,
+    top: el.style.top,
+    zIndex: el.style.zIndex,
+    opacity: el.style.opacity,
+    pointerEvents: el.style.pointerEvents
+  };
+
+  el.style.display = "block";
+  el.style.position = "fixed";
+  el.style.left = "0";
+  el.style.top = "0";
+  el.style.zIndex = "2147483647";
+  el.style.opacity = "1";
+  el.style.pointerEvents = "none";
+
+  // フォント/描画待ち
   if (document.fonts && document.fonts.ready) {
     try { await document.fonts.ready; } catch (_) {}
   }
@@ -537,7 +561,7 @@
   const opt = {
     margin: [6, 6, 6, 6],
     filename: fileName,
-    image: { type: "jpeg", quality: 0.98 }, // JPEG＝透過なし
+    image: { type: "jpeg", quality: 0.98 }, // 透過なし
     html2canvas: {
       scale: 2,
       useCORS: true,
@@ -552,8 +576,16 @@
   try {
     await html2pdf().set(opt).from(el).save();
   } finally {
-    // PDF生成モード終了：元に戻す
-    document.body.classList.remove("pdf-capture");
+    // ★必ず元に戻す
+    for (const b of backups) b.node.style.display = b.display;
+
+    el.style.display = prevEl.display;
+    el.style.position = prevEl.position;
+    el.style.left = prevEl.left;
+    el.style.top = prevEl.top;
+    el.style.zIndex = prevEl.zIndex;
+    el.style.opacity = prevEl.opacity;
+    el.style.pointerEvents = prevEl.pointerEvents;
   }
 }
   </script>
