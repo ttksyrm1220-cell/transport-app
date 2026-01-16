@@ -159,8 +159,8 @@
     // base: 固定費（1運行あたりの目安）
     // perKm: 1kmあたりの原価（燃料・タイヤ・修繕・償却・人件費などを含む目安）
     const VEHICLE_PARAMS = {
-      "4t_wing": { label: "4tウイング", base: 3200, perKm: 135 },
-      "10t_wing": { label: "10tウィング", base: 5000, perKm: 197 }
+      "4t_wing": { label: "4tウイング", base: 3200, perKm: 130 },
+      "10t_wing": { label: "10tウィング", base: 5000, perKm: 190 }
     };
 
     // ▼ 車種別 損益分岐キロ単価（円/km）
@@ -237,7 +237,7 @@
 
           // ★ 損益分岐キロ単価と損益分岐金額
           const breakevenRate = BREAKEVEN_KM_RATE[vehicleKey];
-          const breakevenTotal = breakevenRate * totalKm;
+          const breakevenTotal = vehicle.base+breakevenRate * totalKm;
 
           // ★ 依頼金額での判定
           let judgeHtml = "";
