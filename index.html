@@ -506,7 +506,7 @@
     }
 
     // ★白紙対策済みPDF生成（クローンして確実に描画→キャプチャ）
-    async function downloadEstimatePDF() {
+   async function downloadEstimatePDF() {
   if (!LAST_RESULT) {
     alert("先に計算してください。");
     return;
@@ -534,7 +534,7 @@
     return;
   }
 
-  // 新タブに「見積書だけのページ」を作る（scriptタグは入れない）
+  // 新タブに「見積書だけのページ」を作る（scriptタグは文字列に入れない）
   w.document.open();
   w.document.write(`<!doctype html>
 <html lang="ja">
@@ -543,29 +543,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>見積書PDF</title>
   <style>
-    body{
-      margin:0;
-      background:#fff;
-      color:#000;
-      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Noto Sans JP",Meiryo,sans-serif;
-    }
-    #pdfArea {
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 210mm;
-  padding: 12mm;
-  background: #fff;
-  color: #000;
-
-  opacity: 0;            /* 見えない */
-  pointer-events: none;  /* 触れない */
-  z-index: -9999;        /* 最背面 */
-  transform: translateZ(0); /* 描画バグ対策 */
-}
-
-
-    }
+    body{margin:0;background:#fff;color:#000;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Noto Sans JP",Meiryo,sans-serif;}
+    #pdfArea{display:block;width:210mm;padding:12mm;background:#fff;color:#000;position:static;opacity:1;}
     .pdf-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
     .pdf-title{font-size:18px;font-weight:800;margin:0;}
     .pdf-meta{font-size:12px;text-align:right;}
@@ -587,22 +566,13 @@
 </html>`);
   w.document.close();
 
-  // html2pdf を「DOM操作で」読み込む（script文字列を埋め込まない）
+  // html2pdf をDOMで読み込む（これなら </script> 問題が起きない）
   const s = w.document.createElement("script");
   s.src = "https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js";
 
   s.onload = async () => {
     const el = w.document.getElementById("pdfArea");
-s.onload = async () => {
-  const el = w.document.getElementById("pdfArea");
 
-  // ★追加：display:none を解除（これが超重要）
-  el.style.display = "block";
-  el.style.visibility = "visible";
-
-  // フォント＆描画待ち…
-
-    // フォント＆描画待ち
     if (w.document.fonts && w.document.fonts.ready) {
       try { await w.document.fonts.ready; } catch(e) {}
     }
@@ -613,22 +583,14 @@ s.onload = async () => {
       filename: fileName,
       image: { type: "jpeg", quality: 0.98 },
       html2canvas: { scale: 2, backgroundColor: "#ffffff", scrollX: 0, scrollY: 0 },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["avoid-all", "css", "legacy"] }
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
     };
 
     w.html2pdf().set(opt).from(el).save();
-    // 必要ならPDF保存後に閉じる
-    // w.close();
   };
 
   w.document.head.appendChild(s);
 }
-function calculateRouteAndCost() {
-  const output = document.getElementById("output");
-  output.innerHTML = "計算関数は呼ばれました（ここから処理を復旧します）";
-}
-      
-  </script>
+ </script>
 </body>
 </html>
