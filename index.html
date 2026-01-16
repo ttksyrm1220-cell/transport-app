@@ -521,31 +521,13 @@
 
   const el = document.getElementById("pdfArea");
 
-  // ★ 元のスタイルを退避
-  const prev = {
-    opacity: el.style.opacity,
-    zIndex: el.style.zIndex,
-    left: el.style.left,
-    top: el.style.top,
-    position: el.style.position,
-    pointerEvents: el.style.pointerEvents,
-    display: el.style.display
-  };
+  // PDF生成モード開始：見積書以外を隠す
+  document.body.classList.add("pdf-capture");
 
-  // ★ PDF化の瞬間だけ「描画される状態」にする
-  el.style.position = "fixed";
-  el.style.left = "0";
-  el.style.top = "0";
-  el.style.zIndex = "2147483647";
-  el.style.opacity = "1";
-  el.style.pointerEvents = "none";
-  el.style.display = "block";
-
-  // フォント描画待ち
+  // フォント描画＆DOM反映待ち
   if (document.fonts && document.fonts.ready) {
     try { await document.fonts.ready; } catch (_) {}
   }
-  // 1フレーム待ってDOM反映を確実に
   await new Promise(r => requestAnimationFrame(r));
 
   const date = todayStr();
@@ -555,15 +537,13 @@
   const opt = {
     margin: [6, 6, 6, 6],
     filename: fileName,
-    image: { type: "jpeg", quality: 0.98 },
+    image: { type: "jpeg", quality: 0.98 }, // JPEG＝透過なし
     html2canvas: {
       scale: 2,
       useCORS: true,
       backgroundColor: "#ffffff",
       scrollX: 0,
-      scrollY: 0,
-      windowWidth: el.scrollWidth,
-      windowHeight: el.scrollHeight
+      scrollY: 0
     },
     jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
     pagebreak: { mode: ["avoid-all", "css", "legacy"] }
@@ -572,14 +552,8 @@
   try {
     await html2pdf().set(opt).from(el).save();
   } finally {
-    // ★ 元に戻す
-    el.style.opacity = prev.opacity;
-    el.style.zIndex = prev.zIndex;
-    el.style.left = prev.left;
-    el.style.top = prev.top;
-    el.style.position = prev.position;
-    el.style.pointerEvents = prev.pointerEvents;
-    el.style.display = prev.display;
+    // PDF生成モード終了：元に戻す
+    document.body.classList.remove("pdf-capture");
   }
 }
   </script>
