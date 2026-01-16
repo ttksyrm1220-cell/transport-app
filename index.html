@@ -57,16 +57,21 @@
     }
     details summary { font-weight: 700; cursor: pointer; }
 
-    /* PDF用（画面には見せない） */
+    /* ★PDF用（普段は透明で“存在”させる：画面外へ飛ばさない） */
     #pdfArea {
       position: fixed;
-      left: -99999px;
+      left: 0;
       top: 0;
       width: 210mm;
       padding: 12mm;
       background: #fff;
       color: #000;
+
+      opacity: 0;           /* 見えない */
+      pointer-events: none; /* 触れない */
+      z-index: -1;          /* 最背面 */
     }
+
     .pdf-header { display:flex; justify-content:space-between; align-items:flex-start; gap: 12px; }
     .pdf-title { font-size: 18px; font-weight: 800; margin: 0; }
     .pdf-meta { font-size: 12px; text-align:right; }
@@ -178,7 +183,7 @@
 
   <div class="result" id="output">ここに結果が表示されます。</div>
 
-  <!-- PDF用の見積書エリア（隠し） -->
+  <!-- PDF用の見積書エリア（透明・非操作） -->
   <div id="pdfArea" aria-hidden="true">
     <div class="pdf-header">
       <div>
@@ -251,7 +256,7 @@
   <!-- html2pdf（日本語の文字化け回避：HTMLをレンダリングしてPDF化） -->
   <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 
-  <!-- Google Maps API（★改行なしで1行にする / ★キーは必ずリファラ制限） -->
+  <!-- Google Maps API（キーは必ずリファラ制限） -->
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCNNeldUbE5mzfEHdIaaEEudewMm0MPRf4" async defer></script>
 
   <script>
@@ -259,15 +264,12 @@
     const TAX_RATE = 0.10; // 10%
 
     // ▼ 車種別 原価パラメータ
-    // base: 固定費（1運行あたりの目安）
-    // perKm: 1kmあたりの原価（変動費の目安）
     const VEHICLE_PARAMS = {
-      "4t_wing": { label: "4tウイング", base: 3200, perKm: 130 },
+      "4t_wing":  { label: "4tウイング",  base: 3200, perKm: 130 },
       "10t_wing": { label: "10tウィング", base: 5000, perKm: 190 }
     };
 
     // ▼ 車種別 損益分岐キロ単価（円/km）
-    // （ここは「売上ベースの最低必要単価」として運用する想定）
     const BREAKEVEN_KM_RATE = {
       "4t_wing": 135,
       "10t_wing": 197
@@ -275,16 +277,11 @@
 
     let LAST_RESULT = null;
 
-    function fmtYenFloor(n) {
-      // 円表示（念のため整数化して表示）
+    function yenFloor(n) {
       if (n === null || n === undefined || isNaN(n)) return "";
       return Math.floor(n).toLocaleString("ja-JP") + " 円";
     }
-    function fmtYenRound(n) {
-      if (n === null || n === undefined || isNaN(n)) return "";
-      return Math.round(n).toLocaleString("ja-JP") + " 円";
-    }
-    function fmtKm(n) {
+    function kmFmt(n) {
       if (n === null || n === undefined || isNaN(n)) return "";
       return (Math.round(n * 10) / 10).toFixed(1) + " km";
     }
@@ -302,6 +299,7 @@
       const waypointsText = document.getElementById("waypoints").value;
       const vehicleKey = document.getElementById("vehicle").value;
       const factor = parseFloat(document.getElementById("factor").value) || 1.0;
+
       const requestAmountRaw = document.getElementById("requestAmount").value;
       const requestAmount = requestAmountRaw === "" ? NaN : parseFloat(requestAmountRaw);
 
@@ -357,22 +355,21 @@
           // 原価 = 固定費 + km単価×距離
           const cost = vehicle.base + totalKm * vehicle.perKm;
 
-          // 見積額（税抜）＝ 原価 × 係数
+          // 見積額（税抜）
           const estimateExTax = cost * factor;
 
-          // 消費税（外税・切り捨て）
+          // 税額（外税・切り捨て）
           const taxAmount = Math.floor(estimateExTax * TAX_RATE);
 
           // 税込合計
           const totalWithTax = estimateExTax + taxAmount;
 
-          // 損益分岐（固定費base込み）
+          // 損益分岐（固定費込みで整合）
           const breakevenRate = BREAKEVEN_KM_RATE[vehicleKey];
           const breakevenTotal = vehicle.base + breakevenRate * totalKm;
 
-          // 判定
+          // 判定（依頼金額 vs 損益分岐金額）
           let judgeHtml = "";
-          let judgeText = "";
           let diffTotal = null;
           let diffPerKm = null;
 
@@ -381,14 +378,12 @@
             diffPerKm = diffTotal / totalKm;
 
             if (diffTotal >= 0) {
-              judgeText = `黒字見込み（差額 +${Math.floor(diffTotal).toLocaleString()}円 ≒ +${diffPerKm.toFixed(1)}円/km）`;
               judgeHtml =
                 `<span style="color:green;font-weight:bold;">✅ 黒字見込み</span><br>` +
                 `（損益分岐金額 約${Math.floor(breakevenTotal).toLocaleString()}円 に対して、` +
                 `依頼金額 ${Math.floor(requestAmount).toLocaleString()}円、<br>` +
                 `差額 +${Math.floor(diffTotal).toLocaleString()}円 ≒ +${diffPerKm.toFixed(1)}円/km）<br>`;
             } else {
-              judgeText = `赤字注意（差額 ${Math.floor(diffTotal).toLocaleString()}円 ≒ ${diffPerKm.toFixed(1)}円/km）`;
               judgeHtml =
                 `<span style="color:red;font-weight:bold;">❌ 赤字注意</span><br>` +
                 `（損益分岐金額 約${Math.floor(breakevenTotal).toLocaleString()}円 に対して、` +
@@ -396,13 +391,11 @@
                 `差額 ${Math.floor(diffTotal).toLocaleString()}円 ≒ ${diffPerKm.toFixed(1)}円/km）<br>`;
             }
           } else {
-            judgeText = "依頼金額未入力（判定なし）";
             judgeHtml = "※ 依頼金額（円）を入力すると、この運行が黒字か赤字かを判定します。<br>";
           }
 
-          // 保存（PDF用）
+          // PDF用に保持
           LAST_RESULT = {
-            createdAt: new Date(),
             origin,
             destination,
             waypointLines,
@@ -417,7 +410,6 @@
             totalWithTax,
             breakevenRate,
             breakevenTotal,
-            judgeText,
             diffTotal,
             diffPerKm,
             legsText,
@@ -428,7 +420,7 @@
             validUntil: document.getElementById("validUntil").value.trim()
           };
 
-          // 画面表示（税抜/税/税込）
+          // 画面表示
           output.innerHTML = `
             <strong>車種：</strong>${vehicle.label}<br>
             <strong>総走行距離：</strong>${totalKm.toFixed(1)} km<br><br>
@@ -471,26 +463,27 @@
       document.getElementById("pdfDestination").textContent = r.destination;
       document.getElementById("pdfWaypoints").textContent =
         (r.waypointLines && r.waypointLines.length) ? r.waypointLines.join(" / ") : "なし";
-      document.getElementById("pdfTotalKm").textContent = fmtKm(r.totalKm);
+      document.getElementById("pdfTotalKm").textContent = kmFmt(r.totalKm);
 
-      // 金額（外税・切り捨て）
-      document.getElementById("pdfEstimate").textContent = fmtYenFloor(r.estimateExTax);
-      document.getElementById("pdfTax").textContent = fmtYenFloor(r.taxAmount);
-      document.getElementById("pdfTotalWithTax").textContent = fmtYenFloor(r.totalWithTax);
+      document.getElementById("pdfEstimate").textContent = yenFloor(r.estimateExTax);
+      document.getElementById("pdfTax").textContent = yenFloor(r.taxAmount);
+      document.getElementById("pdfTotalWithTax").textContent = yenFloor(r.totalWithTax);
 
-      document.getElementById("pdfCost").textContent = fmtYenFloor(r.cost);
-      document.getElementById("pdfBreakevenTotal").textContent = fmtYenFloor(r.breakevenTotal);
-      document.getElementById("pdfRequest").textContent = r.requestAmount ? fmtYenFloor(r.requestAmount) : "（未入力）";
+      document.getElementById("pdfCost").textContent = yenFloor(r.cost);
+      document.getElementById("pdfBreakevenTotal").textContent = yenFloor(r.breakevenTotal);
+      document.getElementById("pdfRequest").textContent = r.requestAmount != null ? yenFloor(r.requestAmount) : "（未入力）";
 
-      document.getElementById("pdfJudge").innerHTML =
-        (r.requestAmount == null)
-          ? `<span class="muted">依頼金額未入力（判定なし）</span>`
-          : (r.diffTotal >= 0
-              ? `<span class="badge-ok">✅ 黒字見込み</span><div class="small muted">差額 +${Math.floor(r.diffTotal).toLocaleString()}円（+${r.diffPerKm.toFixed(1)}円/km）</div>`
-              : `<span class="badge-ng">❌ 赤字注意</span><div class="small muted">差額 ${Math.floor(r.diffTotal).toLocaleString()}円（${r.diffPerKm.toFixed(1)}円/km）</div>`
-            );
+      const judgeEl = document.getElementById("pdfJudge");
+      if (r.requestAmount == null) {
+        judgeEl.innerHTML = `<span class="muted">依頼金額未入力（判定なし）</span>`;
+      } else if (r.diffTotal >= 0) {
+        judgeEl.innerHTML = `<span class="badge-ok">✅ 黒字見込み</span>
+          <div class="small muted">差額 +${Math.floor(r.diffTotal).toLocaleString()}円（+${r.diffPerKm.toFixed(1)}円/km）</div>`;
+      } else {
+        judgeEl.innerHTML = `<span class="badge-ng">❌ 赤字注意</span>
+          <div class="small muted">差額 ${Math.floor(r.diffTotal).toLocaleString()}円（${r.diffPerKm.toFixed(1)}円/km）</div>`;
+      }
 
-      // legs
       const tbody = document.getElementById("pdfLegs");
       tbody.innerHTML = "";
       (r.legsText || []).forEach(t => {
@@ -511,73 +504,71 @@
       document.getElementById("pdfNote").textContent = r.note || "（なし）";
     }
 
-   async function downloadEstimatePDF() {
-  if (!LAST_RESULT) {
-    alert("先に計算してください。");
-    return;
-  }
+    // ★白紙対策済みPDF生成（クローンして確実に描画→キャプチャ）
+    async function downloadEstimatePDF() {
+      if (!LAST_RESULT) {
+        alert("先に計算してください。");
+        return;
+      }
 
-  // 入力欄の最新値を反映
-  LAST_RESULT.customer = document.getElementById("customer").value.trim();
-  LAST_RESULT.subject = document.getElementById("subject").value.trim();
-  LAST_RESULT.staff = document.getElementById("staff").value.trim();
-  LAST_RESULT.validUntil = document.getElementById("validUntil").value.trim();
-  LAST_RESULT.note = document.getElementById("note").value.trim();
+      // 入力欄の最新値を反映
+      LAST_RESULT.customer = document.getElementById("customer").value.trim();
+      LAST_RESULT.subject = document.getElementById("subject").value.trim();
+      LAST_RESULT.staff = document.getElementById("staff").value.trim();
+      LAST_RESULT.validUntil = document.getElementById("validUntil").value.trim();
+      LAST_RESULT.note = document.getElementById("note").value.trim();
 
-  fillPdfTemplate();
+      fillPdfTemplate();
 
-  // 生成対象を「クローン」して、確実に描画される状態でキャプチャする
-  const original = document.getElementById("pdfArea");
-  const clone = original.cloneNode(true);
-  clone.id = "pdfAreaClone";
+      const original = document.getElementById("pdfArea");
+      const clone = original.cloneNode(true);
+      clone.id = "pdfAreaClone";
 
-  // クローンを“見える位置”に置くが、透明にしてユーザーには見せない
-  clone.style.position = "fixed";
-  clone.style.left = "0";
-  clone.style.top = "0";
-  clone.style.opacity = "0";
-  clone.style.pointerEvents = "none";
-  clone.style.zIndex = "9999";
-  clone.style.background = "#fff";
+      // クローンを「(0,0)に存在」させる：ユーザーには見せない
+      clone.style.position = "fixed";
+      clone.style.left = "0";
+      clone.style.top = "0";
+      clone.style.opacity = "0";
+      clone.style.pointerEvents = "none";
+      clone.style.zIndex = "9999";
+      clone.style.background = "#fff";
 
-  document.body.appendChild(clone);
+      document.body.appendChild(clone);
 
-  // フォント描画待ち（白紙/欠け対策）
-  if (document.fonts && document.fonts.ready) {
-    try { await document.fonts.ready; } catch (_) {}
-  }
+      // フォント描画待ち
+      if (document.fonts && document.fonts.ready) {
+        try { await document.fonts.ready; } catch (_) {}
+      }
+      // 1フレーム待ってDOM反映を確実に
+      await new Promise(r => requestAnimationFrame(r));
 
-  // 1フレーム待つ（描画確定）
-  await new Promise(r => requestAnimationFrame(r));
+      const date = todayStr();
+      const kmInt = Math.round(LAST_RESULT.totalKm);
+      const fileName = `見積書_${date}_${LAST_RESULT.vehicleKey}_${kmInt}km.pdf`;
 
-  const date = todayStr();
-  const kmInt = Math.round(LAST_RESULT.totalKm);
-  const fileName = `見積書_${date}_${LAST_RESULT.vehicleKey}_${kmInt}km.pdf`;
+      const opt = {
+        margin:       [6, 6, 6, 6],
+        filename:     fileName,
+        image:        { type: "jpeg", quality: 0.98 },
+        html2canvas:  {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: clone.scrollWidth,
+          windowHeight: clone.scrollHeight
+        },
+        jsPDF:        { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak:    { mode: ["avoid-all", "css", "legacy"] }
+      };
 
-  const opt = {
-    margin:       [6, 6, 6, 6],
-    filename:     fileName,
-    image:        { type: "jpeg", quality: 0.98 },
-    html2canvas:  {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      scrollX: 0,
-      scrollY: 0,
-      windowWidth: clone.scrollWidth,
-      windowHeight: clone.scrollHeight
-    },
-    jsPDF:        { unit: "mm", format: "a4", orientation: "portrait" },
-    pagebreak:    { mode: ["avoid-all", "css", "legacy"] }
-  };
-
-  try {
-    await html2pdf().set(opt).from(clone).save();
-  } finally {
-    // 後片付け
-    clone.remove();
-  }
-}   
+      try {
+        await html2pdf().set(opt).from(clone).save();
+      } finally {
+        clone.remove();
+      }
+    }
   </script>
 </body>
 </html>
