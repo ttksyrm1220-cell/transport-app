@@ -140,16 +140,17 @@
   <label>見積係数（原価 × 係数）：</label>
   <input id="factor" type="number" step="0.01" value="1.2" placeholder="例：1.2" />
 
-  <label>実際のキロ単価（任意・円/km）：</label>
-  <input id="actualRate" type="number" step="1" placeholder="例：180" />
+  <label>依頼金額（この運行で受け取る金額・円）：</label>
+  <input id="requestAmount" type="number" step="1" placeholder="例：85000" />
 
   <button onclick="calculateRouteAndCost()">原価と見積額を計算</button>
 
   <div class="result" id="output"></div>
 
-  <!-- Google Maps API（※ここはあなたのAPIキーに差し替え） -->
+  <!-- Google Maps API -->
   <script
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCNNeldUbE5mzfEHdIaaEEudewMm0MPRf4"
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCNNeldUbE5mzfEHdIaaEEudewMm0MPRf4
+"
     async defer
   ></script>
 
@@ -174,7 +175,7 @@
       const waypointsText = document.getElementById("waypoints").value;
       const vehicleKey = document.getElementById("vehicle").value;
       const factor = parseFloat(document.getElementById("factor").value) || 1.0;
-      const actualRateInput = parseFloat(document.getElementById("actualRate").value);
+      const requestAmount = parseFloat(document.getElementById("requestAmount").value);
 
       const output = document.getElementById("output");
 
@@ -234,34 +235,39 @@
           // ★ 見積額（原価 × 係数）
           const estimate = cost * factor;
 
-　　　　　// ★ 依頼金額で黒字 / 赤字を判定
-let judgeHtml = "";
+          // ★ 損益分岐キロ単価と損益分岐金額
+          const breakevenRate = BREAKEVEN_KM_RATE[vehicleKey];
+          const breakevenTotal = breakevenRate * totalKm;
 
-if (isFinite(requestAmount)) {
-  const profit = requestAmount - cost;        // cost = 原価
-  const profitPerKm = profit / totalKm;
+          // ★ 依頼金額での判定
+          let judgeHtml = "";
+          if (!isNaN(requestAmount) && totalKm > 0 && breakevenRate) {
+            const diffTotal = requestAmount - breakevenTotal;
+            const diffPerKm = diffTotal / totalKm;
 
-  if (profit >= 0) {
-    judgeHtml =
-      `<span style="color:green;font-weight:bold;">✅ 黒字</span><br>` +
-      `原価 ${Math.round(cost).toLocaleString()}円 に対して ` +
-      `依頼金額 ${Math.round(requestAmount).toLocaleString()}円<br>` +
-      `差額 ${Math.round(profit).toLocaleString()}円（+${profitPerKm.toFixed(1)}円/km）<br>`;
-  } else {
-    judgeHtml =
-      `<span style="color:red;font-weight:bold;">❌ 赤字</span><br>` +
-      `原価 ${Math.round(cost).toLocaleString()}円 に対して ` +
-      `依頼金額 ${Math.round(requestAmount).toLocaleString()}円<br>` +
-      `差額 ${Math.round(profit).toLocaleString()}円（${profitPerKm.toFixed(1)}円/km）<br>`;
-  }
-} else {
-  judgeHtml = "※ 依頼金額（円）を入力すると黒字 / 赤字を判定します。<br>";
-}
+            if (diffTotal >= 0) {
+              judgeHtml =
+                `<span style="color:green;font-weight:bold;">✅ 黒字見込み</span><br>` +
+                `（損益分岐金額 約${Math.round(breakevenTotal).toLocaleString()}円 に対して、` +
+                `依頼金額 ${Math.round(requestAmount).toLocaleString()}円、<br>` +
+                `差額 +${Math.round(diffTotal).toLocaleString()}円 ≒ +${diffPerKm.toFixed(1)}円/km）<br>`;
+            } else {
+              judgeHtml =
+                `<span style="color:red;font-weight:bold;">❌ 赤字注意</span><br>` +
+                `（損益分岐金額 約${Math.round(breakevenTotal).toLocaleString()}円 に対して、` +
+                `依頼金額 ${Math.round(requestAmount).toLocaleString()}円、<br>` +
+                `差額 ${Math.round(diffTotal).toLocaleString()}円 ≒ ${diffPerKm.toFixed(1)}円/km）<br>`;
+            }
+          } else {
+            judgeHtml = "※ 依頼金額（円）を入力すると、この運行が黒字か赤字かを判定します。<br>";
+          }
 
           output.innerHTML = `
             <strong>車種：</strong>${vehicle.label}<br>
             <strong>総走行距離：</strong>${totalKm.toFixed(1)} km<br><br>
 
+            <strong>損益分岐キロ単価：</strong>${breakevenRate} 円/km<br>
+            <strong>損益分岐金額（目安）：</strong>${Math.round(breakevenTotal).toLocaleString()} 円<br>
             <strong>原価（目安）：</strong>${Math.round(cost).toLocaleString()} 円<br>
             <strong>見積額（原価 × 係数 ${factor.toFixed(2)}）：</strong>${Math.round(estimate).toLocaleString()} 円<br><br>
 
@@ -280,3 +286,5 @@ if (isFinite(requestAmount)) {
   </script>
 </body>
 </html>
+
+
