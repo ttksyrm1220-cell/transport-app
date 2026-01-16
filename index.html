@@ -511,37 +511,73 @@
       document.getElementById("pdfNote").textContent = r.note || "（なし）";
     }
 
-    function downloadEstimatePDF() {
-      if (!LAST_RESULT) {
-        alert("先に計算してください。");
-        return;
-      }
+   async function downloadEstimatePDF() {
+  if (!LAST_RESULT) {
+    alert("先に計算してください。");
+    return;
+  }
 
-      // 入力欄の最新値を反映（後から宛名等を変えた場合）
-      LAST_RESULT.customer = document.getElementById("customer").value.trim();
-      LAST_RESULT.subject = document.getElementById("subject").value.trim();
-      LAST_RESULT.staff = document.getElementById("staff").value.trim();
-      LAST_RESULT.validUntil = document.getElementById("validUntil").value.trim();
-      LAST_RESULT.note = document.getElementById("note").value.trim();
+  // 入力欄の最新値を反映
+  LAST_RESULT.customer = document.getElementById("customer").value.trim();
+  LAST_RESULT.subject = document.getElementById("subject").value.trim();
+  LAST_RESULT.staff = document.getElementById("staff").value.trim();
+  LAST_RESULT.validUntil = document.getElementById("validUntil").value.trim();
+  LAST_RESULT.note = document.getElementById("note").value.trim();
 
-      fillPdfTemplate();
+  fillPdfTemplate();
 
-      const element = document.getElementById("pdfArea");
-      const date = todayStr();
-      const kmInt = Math.round(LAST_RESULT.totalKm);
-      const fileName = `見積書_${date}_${LAST_RESULT.vehicleKey}_${kmInt}km.pdf`;
+  // 生成対象を「クローン」して、確実に描画される状態でキャプチャする
+  const original = document.getElementById("pdfArea");
+  const clone = original.cloneNode(true);
+  clone.id = "pdfAreaClone";
 
-      const opt = {
-        margin:       [6, 6, 6, 6],
-        filename:     fileName,
-        image:        { type: "jpeg", quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak:    { mode: ["avoid-all", "css", "legacy"] }
-      };
+  // クローンを“見える位置”に置くが、透明にしてユーザーには見せない
+  clone.style.position = "fixed";
+  clone.style.left = "0";
+  clone.style.top = "0";
+  clone.style.opacity = "0";
+  clone.style.pointerEvents = "none";
+  clone.style.zIndex = "9999";
+  clone.style.background = "#fff";
 
-      html2pdf().set(opt).from(element).save();
-    }
+  document.body.appendChild(clone);
+
+  // フォント描画待ち（白紙/欠け対策）
+  if (document.fonts && document.fonts.ready) {
+    try { await document.fonts.ready; } catch (_) {}
+  }
+
+  // 1フレーム待つ（描画確定）
+  await new Promise(r => requestAnimationFrame(r));
+
+  const date = todayStr();
+  const kmInt = Math.round(LAST_RESULT.totalKm);
+  const fileName = `見積書_${date}_${LAST_RESULT.vehicleKey}_${kmInt}km.pdf`;
+
+  const opt = {
+    margin:       [6, 6, 6, 6],
+    filename:     fileName,
+    image:        { type: "jpeg", quality: 0.98 },
+    html2canvas:  {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: clone.scrollWidth,
+      windowHeight: clone.scrollHeight
+    },
+    jsPDF:        { unit: "mm", format: "a4", orientation: "portrait" },
+    pagebreak:    { mode: ["avoid-all", "css", "legacy"] }
+  };
+
+  try {
+    await html2pdf().set(opt).from(clone).save();
+  } finally {
+    // 後片付け
+    clone.remove();
+  }
+}   
   </script>
 </body>
 </html>
