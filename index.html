@@ -183,7 +183,8 @@
   <div class="result" id="output">ここに結果が表示されます。</div>
 
   <!-- PDF用の見積書エリア（透明・非操作） -->
-  <div id="pdfArea" aria-hidden="true">
+  <div id="pdfArea" aria-hidden="true" style="display:none;">
+
 
     <div class="pdf-header">
       <div>
@@ -592,6 +593,14 @@
 
   s.onload = async () => {
     const el = w.document.getElementById("pdfArea");
+s.onload = async () => {
+  const el = w.document.getElementById("pdfArea");
+
+  // ★追加：display:none を解除（これが超重要）
+  el.style.display = "block";
+  el.style.visibility = "visible";
+
+  // フォント＆描画待ち…
 
     // フォント＆描画待ち
     if (w.document.fonts && w.document.fonts.ready) {
