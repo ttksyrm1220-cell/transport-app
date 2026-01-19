@@ -2,15 +2,16 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>輸送原価・見積額簡易計算（経由地・車種・損益分岐判定付き）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>輸送原価・見積額簡易計算（距離帯逓減単価・8時間最低運賃・経由地・車種・損益判定付き）</title>
   <style>
     body {
       font-family: sans-serif;
-      max-width: 750px;
+      max-width: 820px;
       margin: 20px auto;
-      padding: 10px;
+      padding: 14px;
       border: 1px solid #ddd;
-      border-radius: 8px;
+      border-radius: 10px;
     }
     label {
       display: block;
@@ -19,103 +20,110 @@
     }
     textarea, input[type="text"], input[type="number"], select {
       width: 100%;
-      padding: 8px;
-      margin-top: 4px;
+      padding: 10px;
+      margin-top: 6px;
       box-sizing: border-box;
+      border: 1px solid #dcdcdc;
+      border-radius: 8px;
     }
-    textarea {
-      min-height: 80px;
-    }
+    textarea { min-height: 90px; }
     button {
-      margin-top: 15px;
+      margin-top: 16px;
       padding: 10px 16px;
       font-size: 14px;
       cursor: pointer;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      background: #fff;
+    }
+    button:hover { background: #f6f6f6; }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 700px){
+      .row { grid-template-columns: 1fr; }
     }
     .result {
       margin-top: 20px;
-      padding: 10px;
-      border-radius: 6px;
+      padding: 12px;
+      border-radius: 10px;
       background: #f7f7f7;
+      border: 1px solid #eee;
     }
+    .muted { color:#666; font-size: 12.5px; line-height: 1.6; }
     .legs {
       margin-top: 10px;
       font-size: 13px;
-      line-height: 1.6;
+      line-height: 1.7;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid #ddd;
+      background: #fff;
+      margin-left: 6px;
     }
     details {
       margin-top: 15px;
-      padding: 10px;
-      border-radius: 6px;
+      padding: 12px;
+      border-radius: 10px;
       background: #fafafa;
       border: 1px solid #eee;
       font-size: 13px;
-      line-height: 1.6;
+      line-height: 1.7;
     }
     details summary {
       font-weight: bold;
       cursor: pointer;
     }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid #eee;
+      font-size: 13px;
+    }
+    th { background: #f5f5f5; }
+    tr:last-child td { border-bottom: none; }
+    .ok { color: green; font-weight: bold; }
+    .ng { color: #c00; font-weight: bold; }
+    .warn { color: #d17b00; font-weight: bold; }
   </style>
 </head>
 <body>
-  <h1>輸送原価・見積額 簡易計算（経由地・車種・損益分岐判定付き）</h1>
+  <h1>輸送原価・見積額 簡易計算</h1>
+  <div class="muted">
+    ・距離帯ごとの<strong>逓減単価</strong>（距離が伸びるほどkm単価が下がる）に対応<br>
+    ・<strong>8時間最低運賃（ミニマム）</strong>に対応（短距離が安すぎるのを防止）
+  </div>
 
-  <!-- ★ 原価の根拠説明ブロック -->
   <details>
     <summary>原価計算の考え方（説明を開く）</summary>
     <p>
-      このアプリでは、トラック1台あたりの原価を<br>
-      <strong>原価 ＝ 基本料金（固定費）＋「走行距離 × 1km単価」</strong><br>
-      というシンプルな式で計算しています。
+      このアプリでは、トラック1台あたりの原価を次の考え方で計算します：
     </p>
     <p>
-      ■ <strong>基本料金（base）</strong><br>
-      出庫・点検・配車・待機・積込／荷降ろしなど、<br>
-      距離に関係なく「1運行あたり」でかかる費用の目安です。<br>
-      例：<br>
-      ・4tウイング：3,200円<br>
-      ・10tウイング：5,000円<br>
+      <strong>原価 ＝ 基本料金（固定費）＋ 距離帯ごとの（走行距離 × km単価）</strong>
     </p>
     <p>
-      ■ <strong>1km単価（perKm）</strong><br>
-      以下のような「走った距離に比例する費用」をまとめたものです：<br>
-      ・燃料費（軽油）<br>
-      ・タイヤ費<br>
-      ・修繕・オイル・消耗品<br>
-      ・車両の償却費（車両代）<br>
-      ・運転手人件費（時間と距離の関係から換算）<br>
-      ・保険・税金・間接費の一部　など<br>
-      これらを年次の実績や社内原価表から1kmあたりに換算し、<br>
-      例として次のような設定を置いています：<br>
-      ・4tウイング：135円/km<br>
-      ・10tウイング：197円/km<br>
+      さらに短距離で割安になり過ぎるのを防ぐため、
+      <strong>8時間最低運賃（ミニマム）</strong>を設定し、
+      <strong>原価は「ミニマム」未満にならない</strong>ようにしています。
     </p>
-    <p>
-      ■ <strong>距離ベースで原価を見る理由</strong><br>
-      燃料・タイヤ・修繕・車両の劣化・人件費（拘束時間）は、<br>
-      いずれも走行距離と強く相関します。<br>
-      そのため、トラック運送業では<br>
-      <strong>「距離 × 単価」＋固定費</strong> という形で原価を簡易的に出すのが一般的です。<br>
-      国土交通省の「標準的な運賃」や、トラック協会の原価計算モデルでも<br>
-      距離区分・距離単価がベースになっています。
-    </p>
-    <p>
-      ■ <strong>損益分岐キロ単価の設定</strong><br>
-      このアプリでは、車種ごとの損益分岐キロ単価を<br>
-      ・4tウイング：<strong>135円/km</strong><br>
-      ・10tウイング：<strong>197円/km</strong><br>
-      のように仮設定しています。<br>
-      実際の値は、御社の年間走行距離・燃料費・車両価格・人件費・高速代などから<br>
-      「年間総コスト ÷ 年間走行距離」で計算して更新してください。
-    </p>
-    <p>
-      ■ <strong>カスタマイズの前提</strong><br>
-      このアプリ内の <code>VEHICLE_PARAMS</code>（原価用）と<br>
-      <code>BREAKEVEN_KM_RATE</code>（損益分岐用）は、<br>
-      あくまで<span>目安値</span>です。<br>
-      実務で使う場合は、御社の実際の原価・損益分岐をもとに<br>
-      数値を見直してから運用してください。
+    <p class="muted">
+      ※ 距離帯単価・ミニマムはコード上の定数で変更できます。運用に合わせて調整してください。
     </p>
   </details>
 
@@ -131,43 +139,242 @@
   <label>卸地（最終到着地）住所：</label>
   <input id="destination" type="text" placeholder="例：大阪府大阪市住之江区1-1-1" />
 
-  <label>車種：</label>
-  <select id="vehicle">
-    <option value="4t_wing">4tウイング</option>
-    <option value="10t_wing">10tウィング</option>
-  </select>
+  <div class="row">
+    <div>
+      <label>車種：</label>
+      <select id="vehicle">
+        <option value="4t_wing">4tウイング</option>
+        <option value="10t_wing">10tウィング</option>
+      </select>
+    </div>
 
-  <label>見積係数（原価 × 係数）：</label>
-  <input id="factor" type="number" step="0.01" value="1.2" placeholder="例：1.2" />
+    <div>
+      <label>見積係数（原価 × 係数）：</label>
+      <input id="factor" type="number" step="0.01" value="1.20" placeholder="例：1.2" />
+    </div>
+  </div>
 
-  <label>依頼金額（この運行で受け取る金額・円）：</label>
-  <input id="requestAmount" type="number" step="1" placeholder="例：85000" />
+  <div class="row">
+    <div>
+      <label>依頼金額（この運行で受け取る金額・円）：</label>
+      <input id="requestAmount" type="number" step="1" placeholder="例：85000" />
+    </div>
+    <div>
+      <label>8時間最低運賃（円）：</label>
+      <input id="minFare" type="number" step="1" value="20000" />
+      <div class="muted">※ ここを変えるとミニマムと分岐点が変わります。</div>
+    </div>
+  </div>
+
+  <details>
+    <summary>見積書（客先提出用）設定（開く）</summary>
+    <div class="muted">※ ここで設定した内容がPDF見積書に反映されます（客先提出用のため、原価・損益判定は見積書には表示しません）。</div>
+
+    <div class="row">
+      <div>
+        <label>自社名：</label>
+        <input id="companyName" type="text" value="株式会社〇〇" />
+      </div>
+      <div>
+        <label>担当者名：</label>
+        <input id="companyPerson" type="text" value="山田 太郎" />
+      </div>
+    </div>
+
+    <label>住所：</label>
+    <input id="companyAddress" type="text" value="東京都○○区○○ 1-2-3" />
+
+    <div class="row">
+      <div>
+        <label>TEL：</label>
+        <input id="companyTel" type="text" value="03-0000-0000" />
+      </div>
+      <div>
+        <label>Email：</label>
+        <input id="companyEmail" type="text" value="sales@example.com" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>宛先（会社名/担当者名）：</label>
+        <input id="customerName" type="text" placeholder="例：株式会社△△ 御中 / △△様" />
+      </div>
+      <div>
+        <label>件名：</label>
+        <input id="estimateTitle" type="text" value="輸送業務 御見積書" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>見積番号：</label>
+        <input id="estimateNo" type="text" placeholder="例：2026-0012" />
+        <div class="muted">※ 空欄なら自動採番します。</div>
+      </div>
+      <div>
+        <label>見積有効期限（日数）：</label>
+        <input id="validDays" type="number" value="30" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>消費税率：</label>
+        <input id="taxRate" type="number" step="0.01" value="0.10" />
+      </div>
+      <div>
+        <label>会社ロゴ（画像ファイル）：</label>
+        <input id="logoInput" type="file" accept="image/*" />
+        <div class="muted">※ PNG推奨。選択したロゴがPDFに入ります。</div>
+      </div>
+    </div>
+
+    <label>備考：</label>
+    <textarea id="estimateNotes" placeholder="例：高速代別途 / 待機料別途 / 荷待ち2時間まで含む など"></textarea>
+  </details>
 
   <button onclick="calculateRouteAndCost()">原価と見積額を計算</button>
+  <button onclick="printEstimatePdf()">見積書PDF（印刷）</button>
 
   <div class="result" id="output"></div>
 
-  <!-- Google Maps API -->
+  <!-- Google Maps API（キーは適切に管理してください） -->
   <script
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCNNeldUbE5mzfEHdIaaEEudewMm0MPRf4
-"
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCNNeldUbE5mzfEHdIaaEEudewMm0MPRf4"
     async defer
   ></script>
 
   <script>
+    /*****************************************************************
+     * 設定（ここを御社用に調整）
+     *****************************************************************/
+
     // ▼ 車種別 原価パラメータ
     // base: 固定費（1運行あたりの目安）
-    // perKm: 1kmあたりの原価（燃料・タイヤ・修繕・償却・人件費などを含む目安）
     const VEHICLE_PARAMS = {
-      "4t_wing": { label: "4tウイング", base: 3200, perKm: 135 },
-      "10t_wing": { label: "10tウィング", base: 5000, perKm: 197 }
+      "4t_wing": { label: "4tウイング", base: 3200 },
+      "10t_wing": { label: "10tウィング", base: 5000 }
     };
 
-    // ▼ 車種別 損益分岐キロ単価（円/km）
-    const BREAKEVEN_KM_RATE = {
-      "4t_wing": 135,  // 4t ウイング
-      "10t_wing": 197  // 10t ウイング
+    // ▼ 距離帯ごとの逓減単価（円/km）
+    // 例）0-120kmは高め、以降は段階的に下げる設計
+    // tiersは「上限km」までの単価。最後にInfinityを入れると無制限帯になります。
+    // ここは“たたき台”です。実績原価・市場運賃に合わせて調整してください。
+    const RATE_TIERS = {
+      "4t_wing": [
+        { upToKm: 120, perKm: 165 },
+        { upToKm: 300, perKm: 150 },
+        { upToKm: 500, perKm: 140 },
+        { upToKm: Infinity, perKm: 132 }
+      ],
+      "10t_wing": [
+        { upToKm: 80, perKm: 235 },
+        { upToKm: 250, perKm: 215 },
+        { upToKm: 500, perKm: 205 },
+        { upToKm: Infinity, perKm: 197 }
+      ]
     };
+
+    /*****************************************************************
+     * 計算ロジック
+     *****************************************************************/
+
+    function escapeHtml(s) {
+      return String(s || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function formatYen(n) {
+      return Math.round(n).toLocaleString();
+    }
+
+    function calcTieredDistanceCost(totalKm, tiers) {
+      // tiers: [{upToKm, perKm}, ...] の昇順
+      let remaining = totalKm;
+      let prevLimit = 0;
+      let cost = 0;
+      const breakdown = []; // {fromKm, toKm, km, perKm, cost}
+
+      for (const t of tiers) {
+        if (remaining <= 0) break;
+        const limit = t.upToKm;
+        const bandKm = Math.max(0, Math.min(totalKm, limit) - prevLimit);
+        if (bandKm > 0) {
+          const bandCost = bandKm * t.perKm;
+          cost += bandCost;
+          breakdown.push({
+            fromKm: prevLimit,
+            toKm: limit,
+            km: bandKm,
+            perKm: t.perKm,
+            cost: bandCost
+          });
+        }
+        prevLimit = limit;
+        remaining = totalKm - prevLimit;
+      }
+
+      return { distanceCost: cost, breakdown };
+    }
+
+    function calcBreakpointKm(minFare, base, tiers) {
+      // 「base + 逓減距離コスト = minFare」になる距離を数値的に求める
+      const targetDistanceCost = minFare - base;
+      if (targetDistanceCost <= 0) return 0;
+
+      let accumulated = 0;
+      let prevLimit = 0;
+      for (const t of tiers) {
+        const limit = t.upToKm;
+        const bandLen = (limit === Infinity) ? Infinity : (limit - prevLimit);
+
+        if (bandLen === Infinity) {
+          return prevLimit + (targetDistanceCost - accumulated) / t.perKm;
+        }
+
+        const bandCost = bandLen * t.perKm;
+        if (accumulated + bandCost >= targetDistanceCost) {
+          const need = targetDistanceCost - accumulated;
+          return prevLimit + need / t.perKm;
+        }
+
+        accumulated += bandCost;
+        prevLimit = limit;
+      }
+      return NaN;
+    }
+
+    /*****************************************************************
+     * 見積書PDF（客先提出用）
+     *****************************************************************/
+
+    // 直近の計算結果を保持
+    let LAST_CALC = null;
+
+    // ロゴ画像をDataURLで保持（選択された場合のみ）
+    let LOGO_DATA_URL = "";
+
+    // ロゴ選択時に読み込む
+    document.addEventListener("DOMContentLoaded", () => {
+      const inp = document.getElementById("logoInput");
+      if (!inp) return;
+      inp.addEventListener("change", (e) => {
+        const f = e.target.files && e.target.files[0];
+        if (!f) { LOGO_DATA_URL = ""; return; }
+        const reader = new FileReader();
+        reader.onload = () => { LOGO_DATA_URL = String(reader.result || ""); };
+        reader.readAsDataURL(f);
+      });
+    });
+
+    function saveLastCalc(payload) {
+      LAST_CALC = { ...payload, createdAt: new Date() };
+    }
 
     function calculateRouteAndCost() {
       const origin = document.getElementById("origin").value.trim();
@@ -176,6 +383,7 @@
       const vehicleKey = document.getElementById("vehicle").value;
       const factor = parseFloat(document.getElementById("factor").value) || 1.0;
       const requestAmount = parseFloat(document.getElementById("requestAmount").value);
+      const minFare = parseFloat(document.getElementById("minFare").value) || 0;
 
       const output = document.getElementById("output");
 
@@ -185,8 +393,9 @@
       }
 
       const vehicle = VEHICLE_PARAMS[vehicleKey];
-      if (!vehicle) {
-        output.innerHTML = "車種の設定に問題があります。";
+      const tiers = RATE_TIERS[vehicleKey];
+      if (!vehicle || !tiers || tiers.length === 0) {
+        output.innerHTML = "車種または距離帯単価の設定に問題があります。";
         return;
       }
 
@@ -224,67 +433,289 @@
           route.legs.forEach((leg, i) => {
             totalDistanceMeters += leg.distance.value;
             const distKm = leg.distance.value / 1000;
-            legsHtml += `区間${i + 1}：${leg.start_address} → ${leg.end_address}：${distKm.toFixed(1)} km<br>`;
+            legsHtml += `区間${i + 1}：${escapeHtml(leg.start_address)} → ${escapeHtml(leg.end_address)}：${distKm.toFixed(1)} km<br>`;
           });
 
           const totalKm = totalDistanceMeters / 1000;
 
-          // ★ 原価 = 基本料金 + km単価×距離
-          const cost = vehicle.base + totalKm * vehicle.perKm;
+          // ▼ 逓減単価で距離コストを計算
+          const { distanceCost, breakdown } = calcTieredDistanceCost(totalKm, tiers);
 
-          // ★ 見積額（原価 × 係数）
+          // ▼ 原価（ベース＋距離帯コスト）
+          const rawCost = vehicle.base + distanceCost;
+
+          // ▼ 8時間最低運賃（ミニマム）
+          const cost = Math.max(minFare, rawCost);
+          const minApplied = minFare > 0 && cost === minFare;
+
+          // ▼ 見積額
           const estimate = cost * factor;
 
-          // ★ 損益分岐キロ単価と損益分岐金額
-          const breakevenRate = BREAKEVEN_KM_RATE[vehicleKey];
-          const breakevenTotal = breakevenRate * totalKm;
+          // ▼ ミニマム分岐点
+          const breakpointKm = calcBreakpointKm(minFare, vehicle.base, tiers);
 
-          // ★ 依頼金額での判定
+          // ▼ 判定：依頼金額 vs 原価（＝損益分岐）
           let judgeHtml = "";
-          if (!isNaN(requestAmount) && totalKm > 0 && breakevenRate) {
-            const diffTotal = requestAmount - breakevenTotal;
+          if (!isNaN(requestAmount) && totalKm > 0) {
+            const diffTotal = requestAmount - cost;
             const diffPerKm = diffTotal / totalKm;
 
             if (diffTotal >= 0) {
               judgeHtml =
-                `<span style="color:green;font-weight:bold;">✅ 黒字見込み</span><br>` +
-                `（損益分岐金額 約${Math.round(breakevenTotal).toLocaleString()}円 に対して、` +
-                `依頼金額 ${Math.round(requestAmount).toLocaleString()}円、<br>` +
-                `差額 +${Math.round(diffTotal).toLocaleString()}円 ≒ +${diffPerKm.toFixed(1)}円/km）<br>`;
+                `<span class="ok">✅ 黒字見込み</span><br>` +
+                `（原価 約${formatYen(cost)}円 に対して、依頼金額 ${formatYen(requestAmount)}円、<br>` +
+                `差額 +${formatYen(diffTotal)}円 ≒ +${diffPerKm.toFixed(1)}円/km）`;
             } else {
               judgeHtml =
-                `<span style="color:red;font-weight:bold;">❌ 赤字注意</span><br>` +
-                `（損益分岐金額 約${Math.round(breakevenTotal).toLocaleString()}円 に対して、` +
-                `依頼金額 ${Math.round(requestAmount).toLocaleString()}円、<br>` +
-                `差額 ${Math.round(diffTotal).toLocaleString()}円 ≒ ${diffPerKm.toFixed(1)}円/km）<br>`;
+                `<span class="ng">❌ 赤字注意</span><br>` +
+                `（原価 約${formatYen(cost)}円 に対して、依頼金額 ${formatYen(requestAmount)}円、<br>` +
+                `差額 ${formatYen(diffTotal)}円 ≒ ${diffPerKm.toFixed(1)}円/km）`;
             }
           } else {
-            judgeHtml = "※ 依頼金額（円）を入力すると、この運行が黒字か赤字かを判定します。<br>";
+            judgeHtml = "※ 依頼金額（円）を入力すると、この運行が黒字か赤字かを判定します。";
           }
 
+          // ▼ 逓減単価の内訳テーブル
+          let tierRows = "";
+          breakdown.forEach((b, idx) => {
+            const toLabel = (b.toKm === Infinity) ? "∞" : b.toKm.toFixed(0);
+            tierRows += `
+              <tr>
+                <td>${idx + 1}</td>
+                <td>${b.fromKm.toFixed(0)} 〜 ${toLabel} km</td>
+                <td>${b.km.toFixed(1)} km</td>
+                <td>${formatYen(b.perKm)} 円/km</td>
+                <td>${formatYen(b.cost)} 円</td>
+              </tr>
+            `;
+          });
+
+          const effectivePerKm = totalKm > 0 ? (cost - vehicle.base) / totalKm : 0;
+
+          // ▼ 見積書PDF用に直近結果を保存
+          saveLastCalc({
+            vehicleLabel: vehicle.label,
+            totalKm,
+            estimate,
+            origin,
+            destination,
+            waypointsText,
+            legsHtml
+          });
+
           output.innerHTML = `
-            <strong>車種：</strong>${vehicle.label}<br>
-            <strong>総走行距離：</strong>${totalKm.toFixed(1)} km<br><br>
+            <div>
+              <strong>車種：</strong>${vehicle.label}<br>
+              <strong>総走行距離：</strong>${totalKm.toFixed(1)} km<br>
+              <strong>固定費（base）：</strong>${formatYen(vehicle.base)} 円<br>
+              <strong>8時間最低運賃：</strong>${formatYen(minFare)} 円
+              ${minApplied ? '<span class="badge warn">最低運賃適用</span>' : ''}
+              <br>
+              <strong>最低運賃の分岐点距離：</strong>${isFinite(breakpointKm) ? breakpointKm.toFixed(1) : '-'} km
+              <span class="muted">（目安：これ未満は最低運賃が効きやすい）</span>
+              <br><br>
 
-            <strong>損益分岐キロ単価：</strong>${breakevenRate} 円/km<br>
-            <strong>損益分岐金額（目安）：</strong>${Math.round(breakevenTotal).toLocaleString()} 円<br>
-            <strong>原価（目安）：</strong>${Math.round(cost).toLocaleString()} 円<br>
-            <strong>見積額（原価 × 係数 ${factor.toFixed(2)}）：</strong>${Math.round(estimate).toLocaleString()} 円<br><br>
+              <strong>原価（逓減単価・ミニマム反映後）：</strong>${formatYen(cost)} 円<br>
+              <strong>見積額（原価 × 係数 ${factor.toFixed(2)}）：</strong>${formatYen(estimate)} 円<br>
+              <strong>参考：実効距離単価：</strong>${effectivePerKm.toFixed(1)} 円/km
+              <span class="muted">（(原価-固定費)/距離）</span>
+              <br><br>
 
-            <strong>依頼金額による判定：</strong><br>
-            ${judgeHtml}
-            <br>
+              <strong>依頼金額による判定：</strong><br>
+              ${judgeHtml}
 
-            <div class="legs">
-              <strong>区間ごとの距離内訳：</strong><br>
-              ${legsHtml}
+              <details>
+                <summary>距離帯単価の内訳（開く）</summary>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>距離帯</th>
+                      <th>適用距離</th>
+                      <th>単価</th>
+                      <th>金額</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${tierRows || '<tr><td colspan="5">内訳なし</td></tr>'}
+                  </tbody>
+                </table>
+                <div class="muted">※ 最後に固定費（base）を加算し、最低運賃（8h）を下回らないようにしています。</div>
+              </details>
+
+              <div class="legs">
+                <strong>区間ごとの距離内訳：</strong><br>
+                ${legsHtml}
+              </div>
             </div>
           `;
         }
       );
     }
+
+    function printEstimatePdf() {
+      if (!LAST_CALC) {
+        alert('先に「原価と見積額を計算」を実行してください。');
+        return;
+      }
+
+      const companyName = document.getElementById('companyName')?.value.trim() || '';
+      const companyPerson = document.getElementById('companyPerson')?.value.trim() || '';
+      const companyAddress = document.getElementById('companyAddress')?.value.trim() || '';
+      const companyTel = document.getElementById('companyTel')?.value.trim() || '';
+      const companyEmail = document.getElementById('companyEmail')?.value.trim() || '';
+
+      const customerName = document.getElementById('customerName')?.value.trim() || '御中';
+      const estimateTitle = document.getElementById('estimateTitle')?.value.trim() || '御見積書';
+      const notes = document.getElementById('estimateNotes')?.value.trim() || '';
+
+      const validDays = parseInt(document.getElementById('validDays')?.value, 10) || 30;
+      const taxRate = parseFloat(document.getElementById('taxRate')?.value) || 0;
+
+      let estimateNo = document.getElementById('estimateNo')?.value.trim() || '';
+      if (!estimateNo) {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        estimateNo = `${y}${m}${day}-${hh}${mm}`;
+      }
+
+      const issueDate = new Date();
+      const expiry = new Date(issueDate);
+      expiry.setDate(expiry.getDate() + validDays);
+
+      const yen = (n) => Math.round(n).toLocaleString();
+      const subtotal = LAST_CALC.estimate;
+      const tax = subtotal * taxRate;
+      const total = subtotal + tax;
+
+      const issueStr = issueDate.toLocaleDateString();
+      const expiryStr = expiry.toLocaleDateString();
+
+      const legsHtmlSafe = LAST_CALC.legsHtml || '';
+
+      const html = `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>${escapeHtml(estimateTitle)}</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  body { font-family: sans-serif; color:#111; }
+  .top { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; }
+  .logo { width: 160px; height: 60px; object-fit: contain; }
+  h1 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.02em; }
+  .meta, .from { font-size: 12px; line-height:1.6; }
+  .to { margin-top: 10px; font-size: 13px; }
+  .hr { margin: 10px 0; border-top: 1px solid #bbb; }
+  table { width:100%; border-collapse: collapse; font-size: 12px; }
+  th, td { border:1px solid #bbb; padding: 8px; vertical-align: top; }
+  th { background:#f2f2f2; text-align:left; }
+  .right { text-align:right; }
+  .big { font-size: 16px; font-weight: 700; }
+  .section { margin-top: 10px; }
+  .note { margin-top: 10px; font-size: 12px; white-space: pre-wrap; }
+  .small { font-size: 11px; color:#333; line-height:1.6; }
+</style>
+</head>
+<body>
+  <div class="top">
+    <div>
+      <h1>${escapeHtml(estimateTitle)}</h1>
+      <div class="to"><strong>${escapeHtml(customerName)}</strong></div>
+      <div class="small">下記の通り御見積申し上げます。</div>
+    </div>
+    <div class="meta">
+      <div>見積番号：${escapeHtml(estimateNo)}</div>
+      <div>発行日：${escapeHtml(issueStr)}</div>
+      <div>有効期限：${escapeHtml(expiryStr)}</div>
+    </div>
+  </div>
+
+  <div class="hr"></div>
+
+  <div class="top">
+    <div class="from">
+      <div><strong>${escapeHtml(companyName)}</strong></div>
+      <div>${escapeHtml(companyAddress)}</div>
+      <div>TEL：${escapeHtml(companyTel)}</div>
+      <div>Email：${escapeHtml(companyEmail)}</div>
+      <div>担当：${escapeHtml(companyPerson)}</div>
+    </div>
+    <div>
+      ${LOGO_DATA_URL ? `<img class="logo" src="${LOGO_DATA_URL}" alt="logo" />` : ``}
+    </div>
+  </div>
+
+  <div class="section">
+    <table>
+      <tr>
+        <th style="width:28%;">輸送区間</th>
+        <td>
+          積地：${escapeHtml(LAST_CALC.origin)}<br>
+          卸地：${escapeHtml(LAST_CALC.destination)}
+        </td>
+      </tr>
+      <tr>
+        <th>車種</th>
+        <td>${escapeHtml(LAST_CALC.vehicleLabel)}</td>
+      </tr>
+      <tr>
+        <th>走行距離（概算）</th>
+        <td>${Number(LAST_CALC.totalKm).toFixed(1)} km</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <table>
+      <tr>
+        <th style="width:28%;">見積金額（税抜）</th>
+        <td class="right big">¥ ${yen(subtotal)}</td>
+      </tr>
+      <tr>
+        <th>消費税</th>
+        <td class="right">¥ ${yen(tax)}</td>
+      </tr>
+      <tr>
+        <th>合計（税込）</th>
+        <td class="right big">¥ ${yen(total)}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section small">
+    <strong>区間内訳（参考）</strong><br>
+    ${legsHtmlSafe}
+  </div>
+
+  ${notes ? `<div class="note"><strong>備考</strong>
+${escapeHtml(notes)}</div>` : ``}
+
+  <script>
+    window.onload = () => { window.print(); };
+  <\/script>
+</body>
+</html>
+`;
+
+      const w = window.open('', '_blank');
+      if (!w) {
+        alert('ポップアップがブロックされました。許可して再実行してください。');
+        return;
+      }
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+    }
   </script>
 </body>
 </html>
+
+
 
 
