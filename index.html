@@ -520,6 +520,18 @@
         reader.readAsDataURL(f);
       });
     });
+  // ▼ 見積書 備考の標準文言（自動入力）
+  const defaultNotes =
+`【算定条件】
+・最低運賃は拘束8時間相当で設定しています。
+・距離単価は距離帯ごとの稼働効率を反映しています（逓減単価）。
+・混載係数は、配車・積込・荷待ち・管理工数を固定成分として織り込むため非線形です。
+・待機は1時間まで運賃に含みます（超過分は別途ご請求）。`;
+
+  const notesEl = document.getElementById("estimateNotes");
+  if (notesEl && !notesEl.value.trim()) {
+    notesEl.value = defaultNotes;
+  }
 
     function saveLastCalc(payload) {
       LAST_CALC = { ...payload, createdAt: new Date() };
