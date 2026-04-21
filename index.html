@@ -142,7 +142,7 @@
 
     <div>
       <label>見積係数（原価 × 係数）：</label>
-      <input id="factor" type="number" step="0.01" value="1.20" placeholder="例：1.2" />
+      <input id="factor" type="number" step="0.01" value="1.25" placeholder="例：1.2" />
     </div>
   </div>
 
@@ -153,7 +153,7 @@
     </div>
     <div>
       <label>8時間最低運賃（円）：</label>
-      <input id="minFare" type="number" step="1" value="20000" />
+      <input id="minFare" type="number" step="1" value="25000" />
       <div class="muted">※ ここを変えるとミニマムと「最低運賃の分岐点距離（目安）」が変わります。</div>
     </div>
   </div>
@@ -266,8 +266,8 @@
 
     // ▼ 車種別 固定費（base）
     const VEHICLE_PARAMS = {
-      "4t_wing": { label: "4tウイング", base: 3200 },
-      "10t_wing": { label: "10tウィング", base: 5000 }
+      "4t_wing": { label: "4tウイング", base: 4500 },
+      "10t_wing": { label: "10tウィング", base: 5500 }
     };
 
     // ▼ 距離帯ごとの逓減単価（円/km）  ※たたき台
@@ -293,8 +293,8 @@
     const LOAD_FACTOR_TABLE = {
       "4t_wing": {
         0: 0.00,
-        10: 0.25,
-        20: 0.38,
+        10: 0.40,
+        20: 0.40,
         30: 0.50,
         40: 0.60,
         50: 0.68,
@@ -306,9 +306,9 @@
       },
       "10t_wing": {
         0: 0.00,
-        10: 0.22,
-        20: 0.35,
-        30: 0.48,
+        10: 0.40,
+        20: 0.40,
+        30: 0.50,
         40: 0.58,
         50: 0.66,
         60: 0.72,
